@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Media;
 using System.Speech.Synthesis;
 using System.Threading.Tasks;
@@ -12,27 +14,30 @@ namespace PRNotify
         private readonly Timer _timer;
         private PullRequest _pr;
 
-        public OpenPullRequestMonitor()
+        public OpenPullRequestMonitor(TimeSpan timespan, ItemState state=ItemState.Open)
         {
-            var pollingPeriod = TimeSpan.FromMinutes(1).TotalMilliseconds;
+            var pollingPeriod = timespan.TotalMilliseconds;
             _timer = new Timer(pollingPeriod) {AutoReset = true};
             _timer.Elapsed += (sender, eventArgs) =>
             {
                 var prs = 0;
                 Task.Run(async () =>
                 {
-                    prs = await PollGitHub();
+                    var requests = await PollGitHub(state);
+                    prs = requests.Count;
+                    _pr = requests.FirstOrDefault();
                     Console.WriteLine("Polled PR count:" + prs);
                 }).Wait();
 
                 if (prs > OpenPrs)
                 {
                     var soundPlayer = new SoundPlayer("fanfare3.wav");
-                    soundPlayer.Play();
+                    soundPlayer.PlaySync();
                     if (_pr != null)
                     {
                         var speech = new SpeechSynthesizer();
-                        speech.Speak("New pull request from " +_pr.User.Name);
+                        speech.Speak("New pull request.");
+                        speech.Speak(_pr.Title);
                     }
 
                     OpenPrs = prs;
@@ -56,17 +61,13 @@ namespace PRNotify
             _timer.Stop();
         }
 
-        public async Task<int> PollGitHub()
+        public async Task<IReadOnlyList<PullRequest>> PollGitHub(ItemState state = ItemState.Open)
         {
-            var gitHubClient = new GitHubClient(new ProductHeaderValue("repo"));
-            gitHubClient.Credentials = new Credentials("****", "****");
-            var openPullRequests = new PullRequestRequest {State = ItemState.Open};
-            var prs = await gitHubClient.PullRequest.GetAllForRepository("owner", "reponame", openPullRequests);
-            if (prs.Count > 0)
-            {
-                _pr = prs[0];
-            }
-            return prs.Count;
+            var gitHubClient = new GitHubClient(new ProductHeaderValue("CalPEATS"));
+            gitHubClient.Credentials = new Credentials("acoats@calicosol.com", "vTAjxSb6gHLt");
+            var openPullRequests = new PullRequestRequest {State = state };
+            var prs = await gitHubClient.PullRequest.GetAllForRepository("calicosol", "CalPEATS", openPullRequests);
+            return prs;
         }
     }
 }
