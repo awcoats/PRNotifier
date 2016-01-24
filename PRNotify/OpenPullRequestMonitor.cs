@@ -64,7 +64,7 @@ namespace PRNotify
         public async Task<IReadOnlyList<PullRequest>> PollGitHub(ItemState state = ItemState.Open)
         {
             var gitHubClient = new GitHubClient(new ProductHeaderValue("CalPEATS"));
-            gitHubClient.Credentials = new Credentials("acoats@calicosol.com", "******");
+            gitHubClient.Credentials = new Credentials("***email**", "******");
             var openPullRequests = new PullRequestRequest {State = state };
             var prs = await gitHubClient.PullRequest.GetAllForRepository("calicosol", "CalPEATS", openPullRequests);
             return prs;
